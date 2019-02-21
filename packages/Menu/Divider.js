@@ -9,7 +9,7 @@ const Divider = ({inset}) => (
   <li
     className={inset ? 'mdc-list-divider-inset' : 'mdc-list-divider'}
     role="separator"
-    />
+  />
 )
 
 Divider.propTypes = {inset: PropTypes.bool };

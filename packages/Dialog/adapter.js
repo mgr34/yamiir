@@ -29,11 +29,11 @@ export class DialogAdapterImpl extends BaseAdapter {
   }
 
   registerDocumentKeydownHandler(handler) {
-    document.addEventListener("keydown", handler);
+    //document.addEventListener("keydown", handler);
   }
 
   deregisterDocumentKeydownHandler(handler) {
-    document.removeEventListener("keydown", handler);
+    //document.removeEventListener("keydown", handler);
   }
 
   registerInteractionHandler(handler) {

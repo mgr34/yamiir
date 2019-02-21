@@ -1,23 +1,36 @@
 import debug from '../debug';
-import BaseAdapter from '../Base/BaseAdapter';
 import { getCorrectEventName } from '@material/animation/dist/mdc.animation';
-const LOG = false;
+import {getMatchesProperty} from "../util";
+import BaseAdapter from "../Base/BaseAdapter";
 
+const LOG = false;
 
 export default class CheckboxAdapter extends BaseAdapter {
 
   //addClass
   //removeClass
 
-  addClass(className) {
-    debug(LOG,'addClass',{className})
-    this._updateClass(className,true)
+  /**
+   * Sets an attribute with a given value on the input element.
+   * @param {string} attr
+   * @param {string} value
+   */
+  setNativeControlAttr(attr, value) {
+    debug(LOG,'setNativeControlAttr',{attr,value});
+
+    this._updateAttr(attr,value,'inputAttrs');
   }
 
-  removeClass(className) {
-    debug(LOG,'removeClass',{className})
-    this._updateClass(className, false)
+  /**
+   * Removes an attribute from the input element.
+   * @param {string} attr
+   */
+  removeNativeControlAttr(attr) {
+    debug(LOG,'removeNativeControlAttr',{attr});
+
+    this._updateAttr(attr,null,'inputAttrs')
   }
+
   /**
    * Registers an event handler to be called when an `animationend` event is
    * triggered on the root element. Note that you must account for vendor
@@ -50,37 +63,70 @@ export default class CheckboxAdapter extends BaseAdapter {
 
   registerChangeHandler(handler) {
     debug(LOG,'registerChangeHander',{handler})
+
+    this._updateEventListener('change',handler,true,'nativeEventListeners')
   }
 
   dereigsterChangeHandler(handler) {
     debug(LOG,'deregisterChangeHander',{handler})
+    this._updateEventListener('change',handler,false,'nativeEventListeners')
   }
 
  getNativeControl() {
-    debug(LOG,'getNativeControl',{el: this.element.inputEl})
+    debug(LOG,'getNativeControl',{
+      indeterminate: this.element.inputEl && this.element.inputEl.hasOwnProperty('indeterminate')
+        ? this.element.inputEl.indeterminate : null
+
+    })
     return this.element.inputEl
  }
 
  forceLayout() {
   debug(LOG,'forceLayout',{})
    if (this.element.inputEl) {
-    return this.element.inputEl.offsetWidth
+    return this.element.rootEl.offsetWidth
    }
  }
 
  isAttachedToDOM() {
-    return Boolean(this.element.inputEl)
+    return Boolean(this.element.rootEl)
  }
 
- get checked() {
-    debug(LOG,'GET CHECKED')
- }
+  //CUSTOM RIPPLE ADAPTER
 
- set checked(checked) {
-    debug(LOG, 'SET CHECKED')
- };
-
-  get root_() {
-    debug(LOG,'GET ROOOOOOOOOT')
+  isUnbounded() {
+    debug(LOG,'isUnbounded',{returns: true});
+    return true
   }
+
+  isSurfaceActive() {
+    const MATCHES = getMatchesProperty(HTMLElement.prototype)
+    debug(LOG,'isActive',{MATCHES});
+
+    if (this.element.inputEl) {
+      return this.element.inputEl[MATCHES](':active');
+    }
+  }
+
+  registerInteractionHandler(evtType,handler) {
+    debug(LOG, 'registerInteractionHandler',{evtType,handler})
+
+    // reactjs doest not currently have a pointerdown synthetic event
+    if (evtType !== 'pointerdown') {
+      this._updateEventListener(evtType,handler,true,'foundationEventListeners')
+    }
+  }
+  deregisterInteractionHandler(evtType,handler)  {
+    debug(LOG, 'reisterInteractionHandler', {evtType, handler});
+    this._updateEventListener(evtType,handler,false,'foundationEventListeners')
+  }
+
 }
+
+/*******/
+export const CheckBoxRippleAdapter = {
+  isUnbounded: () => {},
+  isSurfaceActive: () => {},
+  registerInteractionHandler: () => {},
+  deregisterInteractionHandler: () => {},
+};

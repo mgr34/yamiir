@@ -1,135 +1,270 @@
 import BaseAdapter from '../Base/BaseAdapter';
 import debug from '../debug';
+import {getMatchesProperty} from "../util";
 
 const LOG = false;
 
 export class TextFieldAdapter extends BaseAdapter {
+
   //addClass
   //removeClass
+  //hasClass
+
 
   /**
-   * Adds a class to the label element. We recommend you add a conditional
-   * check here, and in `removeClassFromLabel` for whether or not the label
-   * is present so that the JS component could be used with text fields that
-   * don’t require a label, such as the full-width text field
-   * @param className {string}
+   * Registers an event handler on the root element for a given event.
+   * @param {string} type
+   * @param {function(!Event): undefined} handler
    */
-  addClassToLabel(className) {
-    debug(LOG,'addClassToLabel',{className})
-    //label state is aria-label. otherwise <label> needs class
-    if (!this.element.state.label) {
-      this._updateClass(className, true, 'labelClasses')
+  registerTextFieldInteractionHandler(type, handler) {
+    debug(LOG,'registerTextFieldInteractionHandler',{type,handler});
+
+   this._updateEventListener(type,handler,true)
+  }
+
+  /**
+   * Deregisters an event handler on the root element for a given event.
+   * @param {string} type
+   * @param {function(!Event): undefined} handler
+   */
+  deregisterTextFieldInteractionHandler(type, handler) {
+    debug(LOG, 'deregisterTextFieldInteractionHandler', {type, handler});
+
+    this._updateEventListener(type,handler,false)
+
+  }
+
+  /**
+   * Registers an event listener on the native input element for a given event.
+   * @param {string} evtType
+   * @param {function(!Event): undefined} handler
+   */
+  registerInputInteractionHandler(evtType,handler) {
+    debug(LOG,'registerInputInteractionHandler',{evtType,handler});
+
+    this._updateEventListener(evtType,handler,true,'inputEventListeners');
+  }
+
+  /**
+   * Deregisters an event listener on the native input element for a given event.
+   * @param {string} evtType
+   * @param {function(!Event): undefined} handler
+   */
+  deregisterInputInteractionHandler(evtType,handler) {
+    debug(LOG,'deregisterInputInteractionHandler',{evtType,handler});
+
+    this._updateEventListener(evtType,handler,false,'inputEventListeners');
+  }
+
+  /**
+   * Returns true if the textfield is focused.
+   * We achieve this via `document.activeElement === this.root_`.
+   * @return {boolean}
+   */
+  isFocused() {
+    debug(LOG,'isFocused',{isFocused: document.activeElement === this.element.inputEl});
+
+    return document.activeElement === this.element.inputEl;
+  }
+
+
+  /**
+   * Returns true if the direction of the root element is set to RTL.
+   * @return {boolean}
+   */
+  isRtl() {
+    debug(LOG, 'isRtl',{rtl: this.element.props.rtl});
+
+    return this.element.props.rtl;
+  }
+
+
+  hasOutline() {
+    debug(LOG, 'hasOutline',{hasOutline: !!this.element.outlineEl});
+
+    return !!this.element.outlineEl
+  }
+
+  notchOutline(labelWidth, isRtl) {
+    debug(LOG, 'updateOutlinePath', {labelWidth, isRtl});
+
+   this.element.outlineEl.foundation.notch(labelWidth,isRtl)
+
+  }
+
+  closeOutline() {
+    debug(LOG,'closeOutline',{})
+
+    this.element.outlineEl.foundation.closeNotch()
+  }
+
+
+  /**
+   * Activates the line ripple.
+   */
+  activateLineRipple() {
+    debug(LOG, 'activateLineRipple',{});
+
+    if (this.element.lineRippleEl) {
+      this.element.lineRippleEl.foundation.activate()
     }
   }
 
   /**
-   * Removes a class from the label element
-   * @param className {string}
+   * Deactivates the line ripple.
    */
-  removeClassFromLabel(className) {
-    debug(LOG,'removeClassToLabel',{className})
-    //label state is aria-label. otherwise <label> needs class
-    if (!this.element.state.label) {
-      this._updateClass(className, false, 'labelClasses')
+  deactivateLineRipple() {
+    debug(LOG, 'deactivateLineRipple',{});
+
+    if (this.element.lineRippleEl) {
+      this.element.lineRippleEl.foundation.deactivate()
     }
   }
 
   /**
-   * Adds a class to the help text element. Note that in our code we check
-   * for whether or not we have a help text element and if we don’t, we simply
-   * return.
-   * @param className {string} -- className to add
+   * Sets the transform origin of the line ripple.
+   * @param {number} normalizedX
    */
-  addClassToHelptext(className) {
-    debug(LOG,'addClassToHelpText',{className})
-    if (this.element.state.help) {
-      this._updateClass(className, true, 'helpClasses')
+  setLineRippleTransformOrigin(normalizedX)  {
+    debug(LOG, 'setLineRippleTransformOrigin',{normalizedX});
+
+    if (this.element.lineRippleEl) {
+      this.element.lineRippleEl.foundation.setRippleCenter(normalizedX);
+    }
+
+  }
+
+
+  /**
+   * Only implement if label exists.
+   * Shakes label if shouldShake is true.
+   * @param {boolean} shouldShake
+   */
+  shakeLabel(shouldShake) {
+    debug(LOG,'shakeLabel',{shouldShake})
+
+    if (this.element.labelEl) {
+      this.element.labelEl.foundation.shake(shouldShake)
     }
   }
 
   /**
-   * Removes a class from the help text element.
-   * @param className {string} -- className to remove
+   * Only implement if label exists.
+   * Floats the label above the input element if shouldFloat is true.
+   * @param {boolean} shouldFloat
    */
-  removeClassToHelptext(className) {
-    debug(LOG,'removeClassToHelpText',{className})
-    if (this.element.state.help) {
-      this._updateClass(className, false, 'helpClasses')
+  floatLabel(shouldFloat) {
+    debug(LOG,'floatLabel',{shouldFloat})
+
+    if (this.element.labelEl) {
+      this.element.labelEl.foundation.float(shouldFloat)
     }
+
   }
 
   /**
-   * Returns whether or not the help text element contains the current class
-    * @param className {string}
-   * @return {*|boolean}
+   * Returns true if label element exists, false if it doesn't.
+   * @return {boolean}
    */
-  helptextHasClass(className) {
-    debug(LOG,'helpTextHasClass',{className})
-    if (this.element.state.help) {
-      return this.element.state.helpClasses.includes(className)
-    }
+  hasLabel() {
+    debug(LOG,'hasLabel',{hasLabel: !!this.element.labelEl})
+
+    return !!this.element.labelEl
+
   }
 
   /**
-   * Sets an attribute on the help text element
-   * @param name
-   * @param value
+   * Only implement if label exists.
+   * Returns width of label in pixels.
+   * @return {number}
    */
-  setHelptextAttr(name,value) {
-    debug(LOG,'setHelptextAttr',{name,value:value})
-    if (this.element.state.help) {
-      console.log(this.element.state.helpTextAttributes.toJS())
-      this._updateAttr(name,value,'helpTextAttributes')
+  getLabelWidth() {
+    debug(LOG,'getLabelWidth',{});
+
+    if (this.element.labelEl) {
+      return this.element.labelEl.foundation.getWidth()
     }
+  }
+
+
+  /**
+   * Registers a validation attribute change listener on the input element.
+   * Handler accepts list of attribute names.
+   * @param {function(!Array<String>): undefined} handler
+   * @return {!MutationObserver}
+   */
+  registerValidationAttributeChangeHandler(handler) {
+    //TODO: is this necessary?
+    debug(LOG,'registerValidationAttributeChangeHandler',{handler});
+
+    const getAttributesList = (mutationsList) =>
+      mutationsList.map((mutation) => mutation.attributeName);
+    const observer = new MutationObserver(
+      (mutationsList) => handler(getAttributesList(mutationsList))
+    );
+    const targetNode = this.element.inputEl;
+    const config = {attributes: true};
+    observer.observe(targetNode, config);
+    return observer;
   }
 
   /**
-   * Removes an attribute on the help text element
-   * @param name
-   * @param value
+   * Disconnects a validation attribute observer on the input element.
+   * @param {!MutationObserver} observer
    */
-  removeHelptextAttr(name) {
-    debug(LOG,'removeHelptextAttr',{name})
-    if (this.element.state.help) {
-      console.log(this.element.state.helpTextAttributes.toJS())
-      this._updateAttr(name,null,'helpTextAttributes')
-    }
-  }
+  deregisterValidationAttributeChangeHandler(observer) {
+    debug(LOG,'deregisterValidationAttributeChangeHandler',{observer});
 
-  _updateAttr(name,value,propName) {
-    //can reuse function for cssVars
-    this._updateCssVariable(name,value,propName)
+    observer.disconnect()
   }
-
 
   /**
    * Returns an object representing the native text input element, with a
    * similar API shape. The object returned should include the value, disabled
-   * and badInput properties, as well as the `checkValidity()` function. We
-   * never alter the value within our code, however we do update the disabled
+   * and badInput properties, as well as the checkValidity() function. We never
+   * alter the value within our code, however we do update the disabled
    * property, so if you choose to duck-type the return value for this method
-   * in your implementation it’s important to keep this in mind. Also note
-   * that this method can return null, which the foundation will handle
-   * gracefully.
-   * @return {*|null}
+   * in your implementation it's important to keep this in mind. Also note that
+   * this method can return null, which the foundation will handle gracefully.
+   * @return {?Element|?NativeInputType}
    */
   getNativeInput() {
-    debug(LOG,'getNativeInput', {native: this.element.inputEl})
-    return this.element.inputEl || null
+    debug(LOG,'getNativeInput',{input: this.element.inputEl});
+
+    return this.element.inputEl;
   }
 
-  //handled with react events
-  registerInputFocusHandler(handler) {}
-  deregisterInputFocusHandler(handler)  {}
-  registerInputBlurHandler(handler)  {}
-  deregisterInputBlurHandler(handler)  {}
-  registerInputInputHandler(handler) {}
-  deregisterInputInputHandler(handler) {}
-  registerInputKeydownHandler(handler) {}
-  deregisterInputKeydownHandler(handler)  { }
 
+   //CUSTOM RIPPLE ADAPTER
 
-  set disabled(disabled) {
-    debug(LOG,'setDisabled',{disabled})
+  isSurfaceActive() {
+    const MATCHES = getMatchesProperty(HTMLElement.prototype)
+    debug(LOG,'isActive',{MATCHES})
+
+    if (this.element.inputEl) {
+      return this.element.inputEl[MATCHES](':active');
+    }
   }
+
+  registerInteractionHandler(evtType,handler) {
+    debug(LOG, 'registerInteractionHandler',{evtType,handler})
+
+   // reactjs doest not currently have a pointerdown synthetic event
+    if (evtType !== 'pointerdown') {
+      this.registerInputInteractionHandler(evtType, handler)
+    }
+  }
+  deregisterInteractionHandler(evtType,handler)  {
+    debug(LOG, 'reisterInteractionHandler', {evtType, handler})
+    this.deregisterInputInteractionHandler(evtType, handler)
+  }
+
 }
+
+/*******/
+export const TextFieldRippleAdapter = {
+  isSurfaceActive: () => {},
+  registerInteractionHandler: () => {},
+  deregisterInteractionHandler: () => {},
+};
+

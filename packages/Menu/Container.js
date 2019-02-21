@@ -4,28 +4,48 @@
 import React, {Component} from 'react';
 import { PropTypes } from 'prop-types';
 import { Map as ImmutableMap, Set as ImmutableSet } from 'immutable';
-
-import { MDCSimpleMenuFoundation } from '@material/menu/dist/mdc.menu';
+import {makeActions,  toStyle} from "../util";
+import { MDCMenuFoundation } from './MDCMenuFoundation';
 
 import {MenuAdapter} from './adapter';
 import classnames from 'classnames';
 import MenuSurface from './MenuSurface';
-import { BASE_CLASS_NAME } from './constants'
-import { _determineEvent } from './utils.js';
+import Item from './Item';
+import { BASE_CLASS_NAME, SURFACE_CLASS} from './constants'
+import './mdc-menu.css'
 
 export default class MenuContainer extends Component {
   static propTypes = {
     isOpen: PropTypes.bool.isRequired,
+    actions: PropTypes.shape({
+      onSelect: PropTypes.func,
+      onCancel: PropTypes.func,
+      onFocus: PropTypes.func
+    }),
     onSelect: PropTypes.func,
     onCancel: PropTypes.func,
     rtl: PropTypes.bool,
     anchor: PropTypes.bool,
+    focused: PropTypes.number,
+    style: PropTypes.object,
+    attrs: PropTypes.object,
+    selectedIndex: PropTypes.number,
+    role: PropTypes.string,
+    options: PropTypes.arrayOf(PropTypes.shape({
+      textContent: PropTypes.string,
+      value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]) })),
   };
 
   static defaultProps = {
     isOpen: false,
     rtl: false,
-    anchor: false
+    anchor: false,
+    style: {},
+    actions: {},
+    options: [],
+    attrs: {},
+    selectedIndex: -1,
+    role: "menu"
   };
 
   constructor(props, context) {
@@ -33,128 +53,131 @@ export default class MenuContainer extends Component {
     this.items = [];
     this.state = {
       foundationClasses: new ImmutableSet(),
-      surfaceClasses: new ImmutableSet(),
       foundationCssVars: new ImmutableMap(),
-      surfaceCssVars: new ImmutableMap(),
       foundationEventListeners: new ImmutableMap(),
+      surfaceClasses: new ImmutableSet([SURFACE_CLASS,'mdc-list']),
+      surfaceCssVars: new ImmutableMap(),
       isOpen: props.isOpen,
       previousFocus: false,
       loaded: false,
       anchor: props.anchor,
-      rtl: props.rtl
-    }
+      selectedIndex: props.selectedIndex,
+      rtl: props.rtl,
+      actions: props.actions,
+    };
 
 
     this.adapter = new MenuAdapter(this);
-    this.foundation = new MDCSimpleMenuFoundation(
+    this.foundation = new MDCMenuFoundation(
       this.adapter.toObject(
-        MDCSimpleMenuFoundation.defaultAdapter
+        MDCMenuFoundation.defaultAdapter
       )
     )
 
-    this.handleClick = this.handleClick.bind(this);
-    this.handleSurfaceClick = this.handleSurfaceClick.bind(this);
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    this.handleKeyUp = this.handleKeyUp.bind(this);
-    this.loaded = this.loaded.bind(this)
-  }
 
-  componentDidMount() {
-    this.foundation.init()
-    this.foundationEl.addEventListener('transitionend',this.loaded)
-  }
-
-  componentWillUnmount() {
-    this.foundation.destroy();
-    this.foundationEl.removeEventListener('transitionend',this.loaded)
-  }
-
-  loaded() {
-    this.setState({loaded: true})
-  }
-
-  componentWillReceiveProps(props) {
-    if (!!props.isOpen !== !!this.state.isOpen) {
-      if (props.isOpen) {
-        this.setState({ isOpen: true})
-        this.foundation.open();
-        document.addEventListener(_determineEvent(window),this.handleClick)
-      } else {
-        this.setState({ isOpen: false, loaded: false})
-        this.foundation.close()
-        document.removeEventListener(_determineEvent(window),this.handleClick)
-      }
-    }
   }
 
   static childContextTypes = {
     isOpen: PropTypes.bool.isRequired,
-    itemsRef: PropTypes.func.isRequired
+    itemsRef: PropTypes.func.isRequired,
+    surfaceClassName: PropTypes.string
   };
 
   getChildContext() {
     return {
+      surfaceClassName: this.props.surfaceClassName,
       isOpen: this.state.isOpen,
       itemsRef: (el,i) => this.items[i] = el
     }
   }
 
-
-  handleSurfaceClick(e) {
-    this.foundation.handlePossibleSelected_(e)
-  }
-
-  handleClick(e) {
-    //this.props.onCancel();
-    if (e.target && !this.items.filter(i => i === e.target).length) {
-      this.props.onCancel();
+  componentDidMount() {
+    this.foundation.init();
+    if (this.props.isOpen) {
+      this.foundation.open(this.props.selectedIndex || 0)
+    }
+    if (this.props.hasOwnProperty('menuRef')) {
+      this.props.menuRef(this);
     }
   }
 
-
-
-  handleKeyDown(e) {
-    this.foundation.handleKeyboardDown_(e);
+  componentWillUnmount() {
+    this.setState({ isOpen: false, loaded: false})
+    this.foundation.destroy();
+    if (this.props.hasOwnProperty('menuRef')) {
+      this.props.menuRef(undefined);
+    }
   }
 
-  handleKeyUp(e) {
-    this.foundation.handleKeyboardUp_(e);
+  componentWillReceiveProps(np) {
+    const {props,} = this;
+    if (np.selectedIndex !== this.state.selectedIndex) {
+      this.setState({selectedIndex: np.selectedIndex})
+    }
+
+    if (np.isOpen && !props.isOpen) {
+      this.foundation.open(np.selectedIndex || 0)
+    }
+
+    if (!np.isOpen && props.isOpen) {
+      this.foundation.close()
+    }
+
+  }
+
+  componentDidUpdate(pp) {
+    if (pp.focused !== this.props.focused) {
+      const { focused } = this.props;
+      if (typeof focused === 'number' && focused > -1) {
+        this.foundation.adapter_.focusItemAtIndex(focused);
+      }
+    }
   }
 
   render() {
     const { surfaceClasses, surfaceCssVars, ...state} = this.state;
-    const propertyClassNames = {
-      OPEN: `mdc-simple-menu--open`
-    };
 
     const className = classnames(...state.foundationClasses.toJS(),
       this.props.className,BASE_CLASS_NAME)
 
-    const cssVariables = {
+    const cssStyles = toStyle({
       ...state.foundationCssVars.toJS(),
-    };
+      ...this.props.style
+    });
 
-
-    const eventListeners = {
-      ...state.foundationEventListeners.toJS()
-    };
-
+    const actions = makeActions(this.props.actions,state.foundationEventListeners.toJS())(this.foundation)
     return (
-        <div
-          className={className}
-          style={cssVariables}
-          tabIndex="-1"
-          onKeyDown={this.state.isOpen ? this.handleKeyDown : null}
-          onKeyUp={this.state.loaded ? this.handleKeyUp : null}
-          ref={el => this.foundationEl = el}
-          dir={this.state.rtl ? 'rtl' : 'ltr'}
-        ><MenuSurface
-          className={surfaceClasses}
-          style={surfaceCssVars}
-          onClick={this.handleSurfaceClick}
-          surfaceRef={el => this.surfaceEl = el}
-         >{this.props.children}</MenuSurface>
-        </div>
+      <div
+        {...this.props.attrs}
+        className={className}
+        style={cssStyles}
+        tabIndex="-1"
+        ref={el => this.foundationEl = el}
+        dir={this.state.rtl ? 'rtl' : 'ltr'}
+        {...actions}
+      ><MenuSurface
+        role={this.props.role}
+        className={surfaceClasses.toJS().join(' ')}
+        style={surfaceCssVars}
+        surfaceRef={el => this.surfaceEl = el}
+      >{this.props.options.map((item,i) =>
+        <Item
+          onSelect={actions.onSelect}
+          tabIndex={state.isOpen ? 0 : -1}
+          role={this.props.role === 'menu' ? 'menuitem' : 'option'}
+          disabled={state.selectedIndex === i}
+          id={`menu-${item.textContent}`}
+          key={`menu-key-${item.textContent}`}
+          index={i.toString()}
+          iconBefore={item.iconBefore || undefined}
+          iconAfter={item.iconAfter || undefined }
+        >{item.textContent}</Item>
+      )
+      }
+
+
+        {this.props.children}</MenuSurface>
+      </div>
 
     )
   }

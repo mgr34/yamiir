@@ -28,12 +28,16 @@ export default class DialogContainer extends PureComponent {
     dark: PropTypes.bool,
     open: PropTypes.bool.isRequired,
     onAccept: PropTypes.func,
-    onCancel: PropTypes.func
+    onCancel: PropTypes.func,
+    active: PropTypes.bool,
   };
 
   static defaultProps = {
     open: false,
-    dark: false
+    dark: false,
+    active: true,
+    onAccept: (...args) => console.log({ACCEPT: args}),
+    onCancel: (...args) => console.log({CANCEL: args}),
   };
 
   static childContextTypes = {
@@ -61,8 +65,11 @@ export default class DialogContainer extends PureComponent {
       foundationEventListeners: new ImmutableMap(),
       surfaceEventListeners: new ImmutableMap(),
       open: this.props.open,
-      focusTrap: false
+      focusTrap: false,
     };
+
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+
   }
 
   componentDidMount() {
@@ -70,7 +77,7 @@ export default class DialogContainer extends PureComponent {
     this.setState({
       focusTrap: createFocusTrap(this.surfaceEl,
         {
-          initialFocus: this.acceptButton.refs.nativeCb,
+          initialFocus: this.acceptButton.refs.nativeCb || false,
           clickOutsideDeactivates: true
         })
     });
@@ -94,6 +101,11 @@ export default class DialogContainer extends PureComponent {
         this.foundation.close();
       }
     }
+    if (!!props.active !== !!this.props.active) {
+      if (!this.props.active) {
+       this.state.focusTrap.activate()
+      }
+    }
   }
 
 
@@ -105,6 +117,13 @@ export default class DialogContainer extends PureComponent {
       onCancel: this.props.onCancel,
       acceptRef: el => this.acceptButton = el,
       cancelRef: el => this.cancelButton = el
+    }
+  }
+
+
+  handleKeyDown(e) {
+    if (this.props.active) {
+      this.foundation.documentKeydownHandler_(e)
     }
   }
 
@@ -121,7 +140,9 @@ export default class DialogContainer extends PureComponent {
     };
     const cssClasses = [
       ...this.state.foundationClasses.toJS(),
-      ...className
+      ...className,
+      this.props.className
+
     ];
     const eventListeners = {
       ...this.state.foundationEventListeners.toJS(),
@@ -136,6 +157,7 @@ export default class DialogContainer extends PureComponent {
         eventListeners={eventListeners}
       >
       <aside
+        onKeyDown={this.handleKeyDown}
         role="alertdialog"
         className="mdc-dialog"
         aria-hidden={!this.state.open}
@@ -149,7 +171,7 @@ export default class DialogContainer extends PureComponent {
             {this.props.children}
           </DialogSurface>
         <div className="mdc-dialog__backdrop" onClick={() =>
-          this.props.onCancel()
+          this.props.active ?  this.props.onCancel() : null
         }/>
        </aside>
       </NativeDOM>

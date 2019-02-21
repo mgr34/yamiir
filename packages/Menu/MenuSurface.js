@@ -3,28 +3,27 @@
  */
 import React from 'react';
 import {PropTypes} from 'prop-types';
-import { Map as ImmutableMap, Set as ImmutableSet } from 'immutable'
+import { Map as ImmutableMap, } from 'immutable'
 
-const MenuSurface = (props, {isOpen}) => (
- <ul
-   className={[...props.className, 'mdc-simple-menu__items mdc-list']}
-   style={props.style.toJS()}
-   role="menu"
-   aria-hidden={!isOpen}
-   onClick={props.onClick}
-   ref={props.surfaceRef}
- >{props.children}</ul>
+const MenuSurface = (props, {isOpen,surfaceClassName}) => (
+  <ul
+    className={props.className}
+    style={props.style.toJS()}
+    aria-hidden={!isOpen}
+    ref={props.surfaceRef}
+    role={props.role.length ? props.role : undefined}
+  >{props.children}</ul>
 );
 
 MenuSurface.propTypes = {
   surfaceRef: PropTypes.func.isRequired,
-  className: PropTypes.instanceOf(ImmutableSet).isRequired,
+  className: PropTypes.string.isRequired,
   style: PropTypes.instanceOf(ImmutableMap).isRequired,
-  onClick: PropTypes.func.isRequired
 }
 
 MenuSurface.contextTypes = {
-  isOpen: PropTypes.bool.isRequired
+  isOpen: PropTypes.bool.isRequired,
+  surfaceClassName : PropTypes.string
 }
 
 export default MenuSurface;

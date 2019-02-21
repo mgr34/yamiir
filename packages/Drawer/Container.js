@@ -5,71 +5,45 @@
 import React, {PureComponent} from 'react';
 import { PropTypes } from 'prop-types';
 import { Map as ImmutableMap, Set as ImmutableSet } from 'immutable';
-import NativeDOM from '../Base/NativeDOM';
 import {
-  MDCPersistentDrawerFoundation,
-  MDCTemporaryDrawerFoundation } from '@material/drawer/dist/mdc.drawer';
+  MDCDismissibleDrawerFoundation,
+  MDCModalDrawerFoundation,
+  util,
+} from '@material/drawer';
 import {DrawerAdapter} from './adapter';
 import classnames from 'classnames';
 import DrawerSurface from './DrawerSurface';
 
-import { BASE_CLASS_NAME } from './constants';
+import { BASE_CLASS, SCRIM_CLASS, TYPE_CLASS } from './constants';
 
 
 export default class DrawerContainer extends PureComponent {
+
   static propTypes = {
-    type: PropTypes.oneOf(['temporary','permanent','persistent']),
+    type: PropTypes.oneOf(['dismissible','permanent','modal']),
     open: PropTypes.bool.isRequired,
     onOpen: PropTypes.func,
     onClose: PropTypes.func,
-    rtl: PropTypes.bool
+    className: PropTypes.string,
   };
 
   static defaultProps = {
-    type: 'temporary',
+    type: 'permanent',
     open: false,
-    rtl: false
+    className: ''
   };
 
-  constructor(props, context) {
-    super(props,context);
-    const { type, open } = props;
 
-    this.handleClose = this.handleClose.bind(this);
-    this.handleSurfaceClick = this.handleSurfaceClick.bind(this);
-    this.handleTouchStart = this.handleTouchStart.bind(this);
-    this.handleTouchMove = this.handleTouchMove.bind(this);
-    this.handleTouchEnd = this.handleTouchEnd.bind(this);
-
-
-    if (type === 'temporary' || type === 'persistent') {
-      this.adapter = new DrawerAdapter(this);
-      this.foundation = type === 'temporary'
-        ? new MDCTemporaryDrawerFoundation(
-          this.adapter.toObject(
-            MDCTemporaryDrawerFoundation.defaultAdapter
-          ))
-        : new MDCPersistentDrawerFoundation(
-          this.adapter.toObject(
-            MDCPersistentDrawerFoundation.defaultAdapter
-          ))
-    }
-
-    this.state = {
-      foundationClasses: new ImmutableSet([BASE_CLASS_NAME[type]]),
-      surfaceClasses: new ImmutableSet(),
-      foundationCssVars: new ImmutableMap(),
-      surfaceCssVars: new ImmutableMap(),
-      foundationEventListeners: new ImmutableMap(),
-      open: open,
-      baseClass: BASE_CLASS_NAME[type]
-    };
-  }
-
+  focusTrap = null;
+  foundation = null;
+  drawerElement = React.createRef();
+  prevFocus = null;
+  state = { foundationClasses: new ImmutableSet([BASE_CLASS]) };
 
   componentDidMount() {
-    if (this.foundation) {
-      this.foundation.init();
+    this.initFoundation();
+    if (this.props.open && this.foundation) {
+      this.foundation.open();
     }
   }
 
@@ -79,94 +53,93 @@ export default class DrawerContainer extends PureComponent {
     }
   }
 
-  componentWillReceiveProps(props) {
-    if (!!props.open !== !!this.state.open) {
-      if (props.open) {
-        this.foundation.open();
-      } else {
-        this.foundation.close()
-      }
+  componentDidUpdate(pp) {
+    const {type,open} = this.props;
+    if (pp.type !== type) {
+      this.initFoundation();
+    }
+
+    if (pp.open  !== open) {
+      console.log({open})
+      return open ? this.foundation.open() : this.foundation.close();
     }
   }
 
-  static childContextTypes = {
-    baseClass: PropTypes.oneOf(
-      Object.keys(BASE_CLASS_NAME).map(i => BASE_CLASS_NAME[i])
-    ),
-    open: PropTypes.bool.isRequired
+  initFoundation = () => {
+    const { type } = this.props;
+    if (this.foundation) { this.foundation.destroy() }
+    console.log('%c INIT DRAWER FOUNDATION :: %s','font-size: 18px; color:' +
+      ' red;',type)
+    if (type === 'permanent') { return; }
+
+    this.adapter = new DrawerAdapter(this,);
+    if (type === 'dismissible') {
+       this.foundation = new MDCDismissibleDrawerFoundation(
+         this.adapter.toObject(MDCDismissibleDrawerFoundation.defaultAdapter)
+       )
+    } else if (type === 'modal') {
+      this.initFocusTrap();
+      this.foundation = new MDCModalDrawerFoundation(
+          this.adapter.toObject(MDCModalDrawerFoundation.defaultAdapter)
+        )
+    }
+
+    return this.foundation.init()
   };
 
-  getChildContext() {
-    return {
-      baseClass: this.state.baseClass,
-      open: this.state.open
+  initFocusTrap = () => {
+    console.log('focus trap')
+    this.focusTrap = util.createFocusTrapInstance(this.drawerElement.current);
+  }
+
+  handleKeyDown = e => {
+    if (this.foundation) {
+      this.foundation.handleKeydown(e)
     }
+  };
+
+  handleTransitionEnd = e => {
+    if (this.foundation) {
+      this.foundation.handleTransitionEnd(e)
+    }
+  };
+
+
+  get className() {
+    const {foundationClasses} = this.state;
+    const {type, className} = this.props;
+    return classnames(foundationClasses.toJS(),className, TYPE_CLASS[type])
   }
 
-  handleClose() {
-    this.foundation.close();
-  }
-
-  handleSurfaceClick(e) {
-    this.foundation.drawerClickHandler_(e)
-  }
-
-  handleTouchStart(e) {
-    this.foundation.handleTouchStart_(e)
-  }
-
-  handleTouchMove(e) {
-    this.foundation.handleTouchMove_(e);
-  }
-
-  handleTouchEnd(e) {
-    this.foundation.handleTouchEnd_(e);
-  }
 
   render() {
 
-    const { baseClass, surfaceClasses, surfaceCssVars, ...state} = this.state;
-    const propertyClassNames = {
-      OPEN: `${baseClass}--open`
-    };
-
-    const className = classnames(...state.foundationClasses.toJS(),
-      this.props.className)
-
-    const cssVariables = {
-      ...state.foundationCssVars.toJS(),
-    };
-
-
-    const eventListeners = {
-      ...state.foundationEventListeners.toJS()
-    };
 
     return (
-      <NativeDOM
-        eventListeners={eventListeners}
-      >
+      <React.Fragment>
         <aside
-          ref={el => this.elem = el}
+          ref={this.drawerElement}
           dir={this.props.rtl ? 'rtl' : 'ltr'}
-          className={className}
-          style={cssVariables}
-          onClick={this.handleClose}
-          onTouchMove={this.handleTouchMove}
-          onTouchEnd={this.handleTouchEnd}
-          aria-hidden={!this.state.open}>
-
-          <DrawerSurface
-            onTouchStart={this.handleTouchStart}
-            onClick={this.handleSurfaceClick}
-            classes={surfaceClasses}
-            CSSVars={surfaceCssVars}
-            surfaceRef={el => this.surfaceEl = el}
-          >{this.props.children}</DrawerSurface>
-
+          className={this.className}
+          onKeyDown={this.handleKeyDown}
+          onTransitionEnd={this.handleTransitionEnd}
+          aria-hidden={!this.state.open}
+        >{this.props.children}
         </aside>
-      </NativeDOM>
+        {this.props.type === 'modal' && this.renderScrim() }
+        {this.props.appContent && <div className="mdc-drawer-app-content">{this.props.appContent}</div>}
+    </React.Fragment>
     )
   }
 
+  renderScrim = () => (
+    <div
+      className={SCRIM_CLASS}
+      onClick={() => this.foundation.handleScrimClick()}
+    />
+  )
+
 }
+
+
+

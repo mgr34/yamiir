@@ -8,38 +8,56 @@ import {PropTypes} from 'prop-types';
 import Icon from '../../Icon';
 import classnames from 'classnames';
 import {LIST_CLASS} from './constants';
-import Ripple from '../../Ripple/Ripple';
+import Ripple from '../../Ripple';
 
-const Link = ({ripple, children, ...otherProps},{baseClass,open}) => ripple
-  ? <Ripple><A baseClass={baseClass} open={open} {...otherProps}>{children}</A></Ripple>
-  : <A baseClass={baseClass} open={open} {...otherProps}>{children}</A>;
+const Link = ({ripple, children, ...otherProps},) =>
+ <A ripple open={true} {...otherProps}>{children}</A>
 
-const A = (props) => (
+const A = (props) => props.ripple ?
+  (
+    <Ripple primary>
   <a
     tabIndex={props.open ? 0 : -1}
     title={props.title}
     href={props.href}
     className={classnames(props.className,LIST_CLASS,{
-      [props.baseClass + '--selected']: props.selected
+      [LIST_CLASS + '--selected']: props.selected
     })}
     onClick={props.onClick}
   >
     {props.iconBefore
-      ? <Icon name={props.iconBefore} className="mdc-list-item__start-detail"/>
+      ? <Icon name={props.iconBefore} className="mdc-list-item__graphic"/>
       : null
     }
-    {props.children}
+    <span className={`${LIST_CLASS}__text`}>{props.children}</span>
     {props.iconAfter
-      ? <Icon name={props.iconAfter} className="mdc-list-item__end-detail"/>
+      ? <Icon name={props.iconAfter} className="mdc-list-item__meta"/>
       : null
     }
   </a>
+    </Ripple>
 )
+  :
+  <a
+    tabIndex={props.open ? 0 : -1}
+    title={props.title}
+    href={props.href}
+    className={classnames(props.className,LIST_CLASS,{
+      [LIST_CLASS + '--selected']: props.selected
+    })}
+    onClick={props.onClick}
+  >
+    {props.iconBefore
+      ? <Icon name={props.iconBefore} className="mdc-list-item__graphic"/>
+      : null
+    }
+    <span className={`${LIST_CLASS}__text`}>{props.children}</span>
+    {props.iconAfter
+      ? <Icon name={props.iconAfter} className="mdc-list-item__meta"/>
+      : null
+    }
+  </a>
 
-Link.contextTypes = {
-  baseClass: PropTypes.string.isRequired,
-  open: PropTypes.bool.isRequired
-};
 
 Link.propTypes = {
   title: PropTypes.string,

@@ -1,43 +1,9 @@
 /**
  * Created by matt on 6/16/17.
  */
-import { OrderedSet as ImmutableOrderedSet } from 'immutable';
-const LOG = false
+import BaseEventAndClassAdapter from "./BaseEventAndClassAdapter";
 
-
-export default class BaseAdapter {
-
-  constructor(element) {
-    this.element = element;
-  }
-
-  /**
-   * adds a class to the element
-   * @param className
-   */
-  addClass(className) {
-    this._updateClass(className,true)
-  }
-
-  removeClass(className) {
-    this._updateClass(className, false)
-  }
-
-  hasClass(className) {
-    const { foundationClasses } = this.element.state
-    if (foundationClasses) {
-      return foundationClasses.includes(className)
-    }
-    return false;
-  }
-
-  _updateClass(className,add=true,propName='foundationClasses') {
-    this.element.setState(state => add
-      ? ({ [propName]: state[propName].add(className)  })
-      : ({ [propName]: state[propName].remove(className) })
-    );
-  }
-
+export default class BaseAdapter extends BaseEventAndClassAdapter {
 
   /**
    * Programmatically sets the css variable `varName` on the surface to the
@@ -50,66 +16,17 @@ export default class BaseAdapter {
   }
 
   _updateCssVariable(varName,value,propName='foundationCssVars') {
-    this.element.setState(state => value !== null
-      ? ({ [propName]: state[propName].set(varName, value)})
-      : ({ [propName]: state[propName].delete(varName) })
-    );
+    if (!this.element.hasOwnProperty('_isMounted') || this.element._isMounted) {
+      this.element.setState(state => value !== null
+        ? ({[propName]: state[propName].set(varName, value)})
+        : ({[propName]: state[propName].delete(varName)})
+      );
+    }
   }
 
-  addEventListener(evtType,handler) {
-    this._updateEventListener(evtType, handler, true)
-  }
-
-  removeEventListener(evtType,handler) {
-    this._updateEventListener(evtType, handler, false)
-  }
-
-  /**
-   * Essentially equivalent to
-   * `HTMLElement.prototype.addEventListener`.
-   * @param {string} evtType
-   * @param {EventListener} handler
-   */
-  registerInteractionHandler(eventType, handler) {
-   this.addEventListener(eventType,handler)
-  }
-
-  /**
-   * Essentially equivalent to
-   * `HTMLElement.prototype.removeEventListener`.
-   * @param {string} evtType
-   * @param {EventListener} handler
-   */
-  deregisterInteractionHandler(eventType, handler) {
-   this.removeEventListener(eventType, handler)
-  }
-
-  _updateEventListener(evtType, handler, add=true, propName='foundationEventListeners') {
-
-    this.element.setState(state =>
-       ({
-          [propName]: state[propName].update(
-            evtType,
-            ImmutableOrderedSet(),
-            x =>  add ? x.add(handler) : x.delete(handler)
-          )
-        })
-    );
-
-  }
-
-  toObject(model) {
-    const keys = [...Object.keys(model),
-      ...Object.getOwnPropertyNames(Object.getPrototypeOf(this))];
-    const object = {};
-
-    keys.forEach((key) => {
-      object[key] = (...args) => this[key] !== undefined
-        ? this[key](...args)
-        : model[key](...args)
-    });
-
-    return object;
+  _updateAttr(attr,value,propName='foundationAttrs') {
+    //mask of updateCssVariable. Ultimately updating identical data structure
+    this._updateCssVariable(attr,value,propName)
   }
 
 }

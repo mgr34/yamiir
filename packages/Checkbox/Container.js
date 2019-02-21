@@ -1,14 +1,20 @@
-import React,{PureComponent} from 'react';
+import React from 'react';
 import { PropTypes } from 'prop-types';
 import { Map as ImmutableMap, Set as ImmutableSet } from 'immutable';
-import NativeDOM from '../Base/NativeDOM';
 import { MDCCheckboxFoundation } from '@material/checkbox/dist/mdc.checkbox';
-import CheckboxAdapter from './adapter';
-import classnames from 'classnames';
-import {MDCRipple, MDCRippleFoundation} from '@material/ripple/dist/mdc.ripple';
+import CheckboxAdapter, {CheckBoxRippleAdapter} from './adapter';
+import {
+  BASE_CLASS,
+  NATIVE_CONTROL,
+  BACKGROUND_CLASS,
+  CHECKMARK_CLASS,
+  CHECKMARK_PATH,
+  MIXED_MARK_CLASS
+} from "./contstants";
+import {makeActions, merge} from "../util";
+import RippleWrapper from "../TextField/RippleWrapper";
 
-
-export default class Container extends PureComponent {
+export default class Container extends React.PureComponent {
 
   static propTypes = {
     id: PropTypes.string,
@@ -16,14 +22,16 @@ export default class Container extends PureComponent {
     checked: PropTypes.bool,
     disabled: PropTypes.bool,
     indeterminate: PropTypes.bool,
-    onChange: PropTypes.func
-  }
+    actions: PropTypes.object,
+    name: PropTypes.string
+  };
 
   static defaultProps = {
     checked: false,
     disabled: false,
-    indeterminate: false
-  }
+    indeterminate: false,
+    actions: {onChange: () => null},
+  };
 
   constructor(props) {
     super(props);
@@ -34,141 +42,92 @@ export default class Container extends PureComponent {
       )
     );
 
+    if (props.indeterminate) {
+      console.warn('%cINDETERMINATE STATE IS PRESENTLY BROKEN','font-weight:bold;color:red;')
+    }
+
+    this.rippleAdapter = this.adapter.toObject(CheckBoxRippleAdapter);
     this.state = {
-      foundationClasses: new ImmutableSet(),
+      foundationClasses: new ImmutableSet([BASE_CLASS]),
       foundationEventListeners: new ImmutableMap(),
-      rippleCss: new ImmutableMap(),
+      nativeEventListeners: new ImmutableMap(),
+      inputAttrs: new ImmutableMap(),
       checked: this.props.checked,
       disabled: this.props.disabled,
       indeterminate: this.props.indeterminate
     };
-
-    this.onChange = this.onChange.bind(this);
   }
 
   componentDidMount() {
+    this._isMounted = true;
+    if (this.props.indeterminate) {
+      this.inputEl.indeterminate = this.props.indeterminate;
+    }
     this.foundation.init();
-    this.rippleFoundation.init();
   }
   componentWillUnmount() {
+    this._isMounted = false;
     this.foundation.destroy();
-    this.rippleFoundation.destroy();
-  }
-
-  onChange(e) {
-    const { onChange } = this.props;
-    if (onChange && onChange instanceof Function) {
-      this.props.onChange(e)
-    }
-    this.foundation.transitionCheckState_();
-
-  }
-
-  // Here we synchronize the internal state of the UI component based on what the user has specified.
-  componentWillReceiveProps(props) {
-    if (props.checked !== this.props.checked) {
-      console.log('Setting?')
-      this.setState({checked: props.checked, indeterminate: false});
-    }
-    if (props.indeterminate !== this.props.indeterminate) {
-      this.setState({indeterminate: props.indeterminate});
-    }
-    if (props.disabled !== this.props.disabled) {
-      this.setState({disabled: props.disabled});
-    }
   }
 
 
-  componentDidUpdate() {
-    // To make the ripple animation work we update the css properties after React finished building the DOM.
-    if (this.rootEl) {
-      this.state.rippleCss.forEach((v, k) => {
-        this.rootEl.style.setProperty(k, v);
-      });
+  // Here we synchronize the internal state of the UI component based on what
+  // the user has specified.
+  componentWillReceiveProps(np) {
+    if (np.checked !== this.props.checked) {
+      this.setState({checked: np.checked, indeterminate: false});
+    }
+    if (np.indeterminate !== this.props.indeterminate) {
+      this.setState({indeterminate: np.indeterminate});
+    }
+    if (np.disabled !== this.props.disabled) {
+      this.setState({disabled: np.disabled});
     }
   }
 
+  componentWillUpdate(np,ns) {
+    if (np.indeterminate !== this.props.indeterminate) {
+      this.inputEl.indeterminate = np.indeterminate
+    }
+  }
 
-  //TODO: Factor this out. Use other ripple component?
-  // For browser compatibility we extend the default adapter which checks for css variable support.
-  rippleFoundation = new MDCRippleFoundation(Object.assign(MDCRipple.createAdapter(this), {
-    isUnbounded: () => true,
-    isSurfaceActive: () => this.inputEl[MATCHES](':active'),
-    addClass: className => {
-      this.setState(prevState => ({
-        foundationClasses: prevState.foundationClasses.add(className)
-      }));
-    },
-    removeClass: className => {
-      this.setState(prevState => ({
-        foundationClasses: prevState.foundationClasses.remove(className)
-      }));
-    },
-    registerInteractionHandler: (evtType, handler) => {
-      this.inputEl.addEventListener(evtType, handler);
-    },
-    deregisterInteractionHandler: (evtType, handler) => {
-      this.inputEl.removeEventListener(evtType, handler);
-    },
-    updateCssVariable: (varName, value) => {
-      this.setState(prevState => ({
-        rippleCss: prevState.rippleCss.set(varName, value)
-      }));
-    },
-    computeBoundingRect: () => {
-      const {left, top} = this.rootEl.getBoundingClientRect();
-      const DIM = 40;
-      return {
-        top,
-        left,
-        right: left + DIM,
-        bottom: top + DIM,
-        width: DIM,
-        height: DIM,
-      };
-    },
-  }));
 
 
   render() {
-
-
+    const {props,state} = this;
+    const nativeActions = merge(props.actions,makeActions({},state.nativeEventListeners.toJS())())
+    const foundationActions = makeActions({},state.foundationEventListeners.toJS())();
     return (
-      <NativeDOM eventListeners={this.state.foundationEventListeners.toJS()}>
-      <div
-        ref={el => this.rootEl = el}
-        className={`mdc-checkbox ${this.state.foundationClasses.toJS().join(' ')}`}>
-        <input
-         ref={el => this.inputEl = el}
-         id={this.props.id}
-         type="checkbox"
-         className="mdc-checkbox__native-control"
-         aria-labelledby={this.props.labelId}
-         disabled={this.state.disabled}
-         checked={this.state.checked}
-         onChange={this.onChange}
-        />
-        <div className="mdc-checkbox__background">
-          <svg className="mdc-checkbox__checkmark"
-               viewBox="0 0 24 24">
-            <path className="mdc-checkbox__checkmark__path"
-                  fill="none"
-                  stroke="white"
-                  d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
-          </svg>
-          <div className="mdc-checkbox__mixedmark"></div>
+      <RippleWrapper ref={el => this.rippleRef = el} rippleAdapter={this.rippleAdapter}>
+        <div
+          ref={el => this.rootEl = el}
+          className={state.foundationClasses.toJS().join(' ')}
+          {...foundationActions}
+        ><input
+           ref={el => this.inputEl = el}
+           id={props.id}
+           name={props.name}
+           type="checkbox"
+           className={NATIVE_CONTROL}
+           aria-labelledby={this.props.labelId}
+           disabled={state.disabled}
+           checked={state.checked}
+           {...state.inputAttrs.toJS()}
+           {...nativeActions}
+          />
+          <div className={BACKGROUND_CLASS}>
+            <svg className={CHECKMARK_CLASS}
+                 viewBox="0 0 24 24">
+              <path className={CHECKMARK_PATH}
+                    fill="none"
+                    stroke="white"
+                    d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
+            </svg>
+            <div className={MIXED_MARK_CLASS}></div>
+          </div>
         </div>
-      </div>
-        </NativeDOM>
+      </RippleWrapper>
     )
   }
 
 }
-
-function getMatchesProperty(HTMLElementPrototype) {
-  return [
-    'webkitMatchesSelector', 'msMatchesSelector', 'matches',
-  ].filter((p) => p in HTMLElementPrototype).pop();
-}
-
-const MATCHES = getMatchesProperty(HTMLElement.prototype);

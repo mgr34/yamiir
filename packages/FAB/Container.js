@@ -5,9 +5,15 @@
 
 import React, {PureComponent} from 'react';
 import {PropTypes} from 'prop-types';
-import Ripple from '../Ripple/Ripple';
-import {PROPERTY_CLASS_NAMES, BASE_CLASS_NAME } from './constants';
+import {
+  BASE_CLASS_NAME,
+  EXITED,
+  EXTENDED,
+  ICON_CLASS,
+  LABEL_CLASS, MINI
+} from './constants';
 import classnames from 'classnames';
+import Ripple from "../Ripple/Container";
 
 export default class Container extends PureComponent {
 
@@ -16,41 +22,64 @@ export default class Container extends PureComponent {
     mini: PropTypes.bool,
     disabled: PropTypes.bool,
     ripple: PropTypes.bool,
-    icon: PropTypes.string.isRequired
+    exited: PropTypes.bool,
+    title: PropTypes.string,
+    onClick: PropTypes.func,
+    icon: PropTypes.string.isRequired,
+    secondary: PropTypes.bool,
+    className: PropTypes.string,
+    label: PropTypes.string.isRequired,
+    extended: PropTypes.bool
   };
 
   static defaultProps = {
     plain: false,
     mini: false,
     disabled: false,
-    ripple: false
+    extended: false,
+    ripple: false,
+    secondary: false,
+    onClick: () => console.warn('onClick not defined'),
+    exited: false,
   };
 
   render() {
-    const { ripple, className, plain, mini, icon, disabled } =  this.props;
-    const classNames = classnames({
-      [PROPERTY_CLASS_NAMES.PLAIN]: plain,
-      [PROPERTY_CLASS_NAMES.MINI]: mini,
-      [PROPERTY_CLASS_NAMES.ICON]: icon
+    const {ripple,mini,exited,secondary,plain,className, ...props} = this.props;
+    const classNames = classnames(
+      {
+        [MINI]: mini,
+        [EXITED]: exited,
+        [EXTENDED]: props.extended,
       }, className, BASE_CLASS_NAME);
 
     return ripple
-      ? (
-        <Ripple>
-          <button aria-label={icon} className={classNames} disabled={disabled}>
-            <span className={BASE_CLASS_NAME + '__icon'}>
-              {icon}
-            </span>
-          </button>
-        </Ripple>
-      )
-      : (
-        <button aria-label={icon} className={classNames} disabled={disabled}>
-            <span className={BASE_CLASS_NAME + '__icon'}>
-              {icon}
-            </span>
-        </button>
-      )
+      ? ( <Ripple primary={plain} accent={secondary}>
+            <Button className={classNames} {...props}/>
+          </Ripple>
+        )
+      :  <Button className={classNames} {...props}/>
 
   }
 }
+
+
+const Button = ({extended,title,className,disabled,icon,label,...actions}) => (
+  <button
+    title={title}
+    aria-label={title || label}
+    className={className}
+    disabled={disabled}
+    {...actions}
+  >
+    {icon
+      ? <span className={ICON_CLASS}>{icon}</span>
+      : null
+    }
+
+    {extended
+      ? <span className={LABEL_CLASS}>{label}</span>
+      : null
+    }
+  </button>
+);
+

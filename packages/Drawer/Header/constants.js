@@ -1,3 +1,6 @@
-export const CLASS_NAME = '__header';
-export const CONTENT_CLASS_NAME  = CLASS_NAME + '-content';
+import { BASE_CLASS} from "../constants";
+
+export const HEADER_CLASS = `${BASE_CLASS}__header`;
+export const TITLE_CLASS = `${BASE_CLASS}__title`;
+export const SUBTITLE_CLASS = `${BASE_CLASS}__subtitle`;
 

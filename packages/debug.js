@@ -7,10 +7,11 @@ const debug = (log=false, groupName, stuff={}) => {
     console.group(groupName)
     Object.keys(stuff).map(key=> {
       console.log("%c"+key + ':  ','font-weight: bold',stuff[key])
-    })
+      return null;
+    });
     console.groupEnd()
   }
-  return;
-}
+  return false;
+};
 
 export default debug

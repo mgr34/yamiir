@@ -2,9 +2,15 @@
  * Created by matt on 6/29/17.
  */
 import BaseAdapter from '../Base/BaseAdapter';
-import {
-  getTransformPropertyName
-} from '@material/menu/util';
+import debug from '../debug';
+
+
+function getTransformPropertyName(globalObj, forceRefresh = false) {
+
+    const el = globalObj.document.createElement('div');
+    return  ('transform' in el.style ? 'transform' : 'webkitTransform');
+
+}
 
 
 /**
@@ -16,28 +22,17 @@ import {
  * webkitTransform. notice the 'W'.
  * @param globalObj {window}
  * @return {string}
- */
-const transformPropertyName = (globalObj) => {
+ const transformPropertyName = (globalObj) => {
   const el = globalObj.document.createElement('div');
   return ('transform' in el.style)
     ? 'transform'
     : 'WebkitTransform'
 };
 
+ */
 
 
-const LOG = false
-
-const debug = (log=false, groupName, stuff={}) => {
-  if (log) {
-    console.group(groupName)
-    Object.keys(stuff).map(key=> {
-      console.log("%c"+key + ':  ','font-weight: bold',stuff[key])
-    })
-    console.groupEnd()
-  }
-  return;
-}
+const LOG = false;
 
 
 
@@ -105,94 +100,94 @@ export class MenuAdapter extends BaseAdapter {
     return {width: window.innerWidth, height: window.innerHeight}
   }
 
-  setScale(x,y) {
-    const varName = transformPropertyName(window)
-    this._updateCssVariable(varName,`scale(${x},${y})`)
-  }
-
-  setInnerScale(x,y) {
-    const varName = transformPropertyName(window)
-    this._updateCssVariable(varName,`scale(${x},${y}))`,'surfaceCssVars')
-  }
-
   getNumberOfItems() {
     debug(LOG, 'getNumberOfItems',{n: this.items.length});
 
     return this.items.length
   }
 
-  registerInteractionHandler(type, handler) {
-    debug(LOG,'registerInteractionHandler',{type,handler})
-  }
+  //registerInteractionHandler(type, handler) {
 
-  deregisterInteractionHandler(type, handler) {
-    debug(LOG,'deregisterInteractionHandler',{type,handler})
-  }
+  //deregisterInteractionHandler(type, handler) {
 
   registerBodyClickHandler(handler) {
     debug(LOG,'registerBodyClickHandler',{handler})
+    document.body.addEventListener('click',handler)
   }
 
   deregisterBodyClickHandler(handler) {
     debug(LOG,'deregisterBodyClickHandler',{handler})
+    document.body.removeEventListener('click',handler)
   }
 
-  getYParamsForItemAtIndex(index) {
-    const item = this.items[index];
-    return {top: item.offsetTop, height: item.offsetHeight}
-  }
-
-  //TODO
-  setTransitionDelayForItemAtIndex(index, value) {
-    debug(LOG,'setTransitionDelay',{index,value})
-    this.items[index].style.setProperty('transition-delay',value)
-  }
 
 
   hasClass(className) {
     debug(LOG, 'hasClass', {[className]:
-      this.element.state.foundationClasses.has(className)
+        this.element.state.foundationClasses.has(className)
     })
     this.element.state.foundationClasses.has(className)
     return true
   }
 
 
-  //TODO
   getIndexForEventTarget(target) {
     debug(LOG,'getIndexForEventTarget',{'todo': '!!', target, at: this.items.indexOf(target)})
+    //hack, but allows menu to be used as autoComplete menu.
+    //set the anchor to the input element. This will be called on body.onClick
+    // and not trigger a close event
+    if (target === this.element.props.autocompleteAnchor) {
+      return -2
+    }
+
+    if (target.tagName === 'SPAN') { //otherwise event is not propagated
+      return this.items.indexOf(target.parentNode)
+    }
     return this.items.indexOf(target)
   }
 
   //TODO
   notifySelected(evtData) {
-    debug(LOG, 'notiAfySelectedj', {'TODO': '!', evtData})
-    this.element.props.onCancel()
+    debug(LOG, 'notifySelected', {'TODO': '!', evtData})
+    const {actions} = this.element.props;
+
+    this.element.setState({selectedIndex: evtData.index});
+
+    if (actions.hasOwnProperty('onSelect') &&
+      typeof actions.onSelect === 'function') {
+
+      this.element.props.actions.onSelect({
+        detail: {
+          index: evtData.index,
+          item: this.items[evtData.index]
+        }
+      })
+    }
   }
 
   notifyCancel() {
     const {props} = this.element
     debug(LOG, 'notifyCancel', {props})
-    this.element.setState({ isOpen: false})
-      if (props.hasOwnProperty('onCancel') &&
-        typeof props.onCancel === 'function') {
-        props.onCancel()
-      }
+    if (props.actions.hasOwnProperty('onCancel') &&
+      typeof props.actions.onCancel === 'function') {
+      props.actions.onCancel()
+    }
   }
 
 
   //TODO
   saveFocus() {
-     debug(LOG,'saveFocus',{})
+    debug(LOG,'saveFocus',{})
     //not reacteey
-     this.element.setState({previousFocus: document.activeElement})
+    this.element.setState({previousFocus: document.activeElement})
   }
 
   //TODO
   restoreFocus() {
     debug(LOG,'restoreFocus',{'TODO':'!', anchor: this.element.state.previousFocus})
     //not reacteey
-    if (this.element.state.previousFocus) {
+    if (this.element.state.previousFocus
+      && typeof this.element.props.focused !== 'number') {
       this.element.state.previousFocus.focus()
     }
   }
@@ -205,8 +200,8 @@ export class MenuAdapter extends BaseAdapter {
 
   //TODO
   focus() {
-      debug(LOG,'focus',{})
-      this.focusItemAtIndex(0);
+    debug(LOG,'focus',{})
+    this.focusItemAtIndex(0);
   }
 
   //TODO
@@ -217,8 +212,22 @@ export class MenuAdapter extends BaseAdapter {
 
   //TODO
   focusItemAtIndex(index) {
-      debug(LOG,'focusItemAtIndex',{index})
+    debug(LOG,'focusItemAtIndex',{props: this.element.props, index})
+    const { focused, actions } = this.element.props;
+    if (focused) {
+      if (focused !== -1) {
+        this.element.setState({previousFocus: this.element.items[focused]});
+        this.element.items[focused].focus()
+      }
+    } else {
+      this.element.setState({previousFocus: this.element.items[index]});
       this.element.items[index].focus()
+    }
+
+    if (actions.hasOwnProperty('onFocus') && actions.onFocus === 'function') {
+      actions.onFocus();
+    }
+
   }
 
 
@@ -230,6 +239,11 @@ export class MenuAdapter extends BaseAdapter {
     return this.element.props.rtl || false
   }
 
+  setTransformOrigin(value) {
+    debug(LOG,'setTransformOrigin', {value})
+    this.updateCssVariable(`${getTransformPropertyName(window)}-origin`,value)
+  }
+
   setPosition({left,right,top,bottom}) {
     debug(LOG,'setPosition',{left,right,top,bottom})
     this.updateCssVariable('left',left || null);
@@ -238,13 +252,23 @@ export class MenuAdapter extends BaseAdapter {
     this.updateCssVariable('bottom', bottom|| null);
   }
 
-  getAccurateTime() {
-    return window.performance.now();
+  setMaxHeight(value) {
+    debug(LOG,'setMaxHeight',{value})
+    this.updateCssVariable('maxHeight', value)
+  }
+
+  //TODO
+  addClassForOptionAtIndex(index,className) {
+    debug(true,'addClassForOptionsAtIndex',{index,className})
   }
 
   get items() {
+    // debug(LOG,'get items',{items:
+    // [].slice.call(this.element.surfaceEl.querySelectorAll('.mdc-list-item[role]')) })
     return [].slice.call(
-      this.element.surfaceEl.querySelectorAll('.mdc-list-item[role]')
+      this.element.surfaceEl
+        ? this.element.surfaceEl.querySelectorAll('.mdc-list-item[role]')
+        : []
     );
   }
 
