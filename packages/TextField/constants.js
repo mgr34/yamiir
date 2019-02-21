@@ -1,0 +1,9 @@
+export const BASE_CLASS = 'mdc-text-field';
+export const BOX = `${BASE_CLASS}--box`;
+export const DENSE = `${BASE_CLASS}--dense`;
+export const FULLWIDTH = `${BASE_CLASS}--fullwidth`;
+export const ICON_BEFORE = `${BASE_CLASS}--with-leading-icon`;
+export const ICON_AFTER = `${BASE_CLASS}--with-trailing-icon`;
+export const INPUT = `${BASE_CLASS}__input`;
+export const OUTLINE = `${BASE_CLASS}--outlined`;
+export  const TEXTAREA = `${BASE_CLASS}--textarea`;
